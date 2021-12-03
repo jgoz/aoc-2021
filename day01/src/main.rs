@@ -7,12 +7,10 @@ fn main() {
     let reader = io::stdin();
     let lines = reader.lock().lines();
     let values = lines.map(|x| x.unwrap().parse::<i32>().unwrap());
-    if part == "1" {
-        println!("{}", larger_than_previous(values));
-    } else if part == "2" {
-        println!("{}", windowed_larger_than_previous(values));
-    } else {
-        println!("{}", "Invalid part");
+    match part.as_str() {
+        "1" => println!("{}", larger_than_previous(values)),
+        "2" => println!("{}", windowed_larger_than_previous(values)),
+        _ => println!("Invalid part {}", part),
     }
 }
 
