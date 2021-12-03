@@ -45,7 +45,7 @@ fn part1_gamma_epsilon(mut v: impl Iterator<Item = String>) -> i32 {
 }
 
 #[test]
-fn part1_test() {
+fn day3_part1_test() {
     let v = vec![
         String::from("00100"),
         String::from("11110"),
@@ -65,7 +65,104 @@ fn part1_test() {
     assert_eq!(198, answer);
 }
 
+struct Node {
+    children: Vec<Node>,
+    weight: i32,
+    bit: i32,
+}
+
 fn part2_o2_co2(v: impl Iterator<Item = String>) -> i32 {
+    let mut root = Node {
+        children: vec![],
+        weight: 0,
+        bit: 0,
+    };
+    let mut current: &mut Node;
+
+    // Pass through the input and build a weighted tree of nodes
+    for elem in v {
+        current = &mut root;
+        let len = elem.len() as i32;
+
+        for (i, c) in elem.char_indices() {
+            if current.children.len() != 2 {
+                current.children.push(Node {
+                    children: vec![],
+                    bit: 0,
+                    weight: 0,
+                });
+                current.children.push(Node {
+                    children: vec![],
+                    bit: 1 << len - (i as i32) - 1,
+                    weight: 0,
+                });
+            }
+
+            current = match c {
+                '0' => &mut current.children[0],
+                '1' => &mut current.children[1],
+                _ => panic!("Invalid character {}", c),
+            };
+
+            current.weight += 1;
+        }
+    }
+
+    let mut o2 = 0;
+    current = &mut root;
+    loop {
+        o2 |= current.bit;
+
+        let c = &current.children;
+        let (next, alt) = if c[1].weight >= c[0].weight {
+            (1, 0)
+        } else {
+            (0, 1)
+        };
+
+        if c[next].children.len() == 2 {
+            // Not a leaf node, continue
+            current = &mut current.children[next];
+        } else if c[alt].children.len() == 2 {
+            // 'next' was a leaf node, so continue down the 'alt' path
+            current = &mut current.children[alt];
+        } else {
+            if c[next].weight > 0 {
+                // Terminating condition - add bit if a value was represented on this path
+                o2 |= c[next].bit;
+            }
+            break;
+        }
+    }
+
+    let mut co2 = 0;
+    current = &mut root;
+    loop {
+        co2 |= current.bit;
+
+        let c = &current.children;
+        let (next, alt) = if c[0].weight <= c[1].weight {
+            (0, 1)
+        } else {
+            (1, 0)
+        };
+
+        if c[next].children.len() == 2 {
+            current = &mut current.children[next];
+        } else if c[alt].children.len() == 2 {
+            current = &mut current.children[alt];
+        } else {
+            if c[next].weight > 0 {
+                co2 |= c[next].bit;
+            }
+            break;
+        }
+    }
+
+    o2 * co2
+}
+
+fn _part2_o2_co2_naive(v: impl Iterator<Item = String>) -> i32 {
     let mut o2_candidates: Vec<String> = v.collect();
     let len = o2_candidates[0].len();
 
@@ -119,7 +216,7 @@ fn part2_o2_co2(v: impl Iterator<Item = String>) -> i32 {
 }
 
 #[test]
-fn part2_test() {
+fn day3_part2_test() {
     let v = vec![
         String::from("00100"),
         String::from("11110"),
@@ -135,6 +232,27 @@ fn part2_test() {
         String::from("01010"),
     ];
     let answer = part2_o2_co2(v.into_iter());
+
+    assert_eq!(230, answer);
+}
+
+#[test]
+fn day3_part2_naive_test() {
+    let v = vec![
+        String::from("00100"),
+        String::from("11110"),
+        String::from("10110"),
+        String::from("10111"),
+        String::from("10101"),
+        String::from("01111"),
+        String::from("00111"),
+        String::from("11100"),
+        String::from("10000"),
+        String::from("11001"),
+        String::from("00010"),
+        String::from("01010"),
+    ];
+    let answer = _part2_o2_co2_naive(v.into_iter());
 
     assert_eq!(230, answer);
 }
