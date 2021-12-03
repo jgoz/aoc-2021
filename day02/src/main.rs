@@ -35,7 +35,7 @@ fn part1_depth_by_horizontal(v: impl Iterator<Item = String>) -> i32 {
 }
 
 #[test]
-fn part1_test() {
+fn day2_part1_test() {
     let v = vec![
         String::from("forward 5"),
         String::from("down 5"),
@@ -73,7 +73,7 @@ fn part2_depth_by_horizontal(v: impl Iterator<Item = String>) -> i32 {
 }
 
 #[test]
-fn part2_test() {
+fn day2_part2_test() {
     let v = vec![
         String::from("forward 5"),
         String::from("down 5"),
