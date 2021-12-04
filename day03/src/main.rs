@@ -66,18 +66,18 @@ fn day3_part1_test() {
 }
 
 struct Node {
-    children: Vec<Node>,
+    children: Option<[Box<Node>; 2]>,
     weight: i32,
     bit: i32,
 }
 
 fn part2_o2_co2(v: impl Iterator<Item = String>) -> i32 {
-    let mut root = Node {
-        children: vec![],
+    let mut root = Box::new(Node {
+        children: None,
         weight: 0,
         bit: 0,
-    };
-    let mut current: &mut Node;
+    });
+    let mut current: &mut Box<Node>;
 
     // Pass through the input and build a weighted tree of nodes
     for elem in v {
@@ -85,22 +85,25 @@ fn part2_o2_co2(v: impl Iterator<Item = String>) -> i32 {
         let len = elem.len() as i32;
 
         for (i, c) in elem.char_indices() {
-            if current.children.len() != 2 {
-                current.children.push(Node {
-                    children: vec![],
-                    bit: 0,
-                    weight: 0,
-                });
-                current.children.push(Node {
-                    children: vec![],
-                    bit: 1 << len - (i as i32) - 1,
-                    weight: 0,
-                });
+            if current.children.is_none() {
+                current.children = Some([
+                    Box::new(Node {
+                        children: None,
+                        bit: 0,
+                        weight: 0,
+                    }),
+                    Box::new(Node {
+                        children: None,
+                        bit: 1 << len - (i as i32) - 1,
+                        weight: 0,
+                    }),
+                ]);
             }
 
+            let children = current.children.as_mut().unwrap();
             current = match c {
-                '0' => &mut current.children[0],
-                '1' => &mut current.children[1],
+                '0' => &mut children[0],
+                '1' => &mut children[1],
                 _ => panic!("Invalid character {}", c),
             };
 
@@ -113,23 +116,23 @@ fn part2_o2_co2(v: impl Iterator<Item = String>) -> i32 {
     loop {
         o2 |= current.bit;
 
-        let c = &current.children;
-        let (next, alt) = if c[1].weight >= c[0].weight {
+        let children = current.children.as_mut().unwrap();
+        let (next, alt) = if children[1].weight >= children[0].weight {
             (1, 0)
         } else {
             (0, 1)
         };
 
-        if c[next].children.len() == 2 {
+        if children[next].children.is_some() {
             // Not a leaf node, continue
-            current = &mut current.children[next];
-        } else if c[alt].children.len() == 2 {
+            current = &mut children[next];
+        } else if children[alt].children.is_some() {
             // 'next' was a leaf node, so continue down the 'alt' path
-            current = &mut current.children[alt];
+            current = &mut children[alt];
         } else {
-            if c[next].weight > 0 {
+            if children[next].weight > 0 {
                 // Terminating condition - add bit if a value was represented on this path
-                o2 |= c[next].bit;
+                o2 |= children[next].bit;
             }
             break;
         }
@@ -140,20 +143,20 @@ fn part2_o2_co2(v: impl Iterator<Item = String>) -> i32 {
     loop {
         co2 |= current.bit;
 
-        let c = &current.children;
-        let (next, alt) = if c[0].weight <= c[1].weight {
+        let children = current.children.as_mut().unwrap();
+        let (next, alt) = if children[0].weight <= children[1].weight {
             (0, 1)
         } else {
             (1, 0)
         };
 
-        if c[next].children.len() == 2 {
-            current = &mut current.children[next];
-        } else if c[alt].children.len() == 2 {
-            current = &mut current.children[alt];
+        if children[next].children.is_some() {
+            current = &mut children[next];
+        } else if children[alt].children.is_some() {
+            current = &mut children[alt];
         } else {
-            if c[next].weight > 0 {
-                co2 |= c[next].bit;
+            if children[next].weight > 0 {
+                co2 |= children[next].bit;
             }
             break;
         }
