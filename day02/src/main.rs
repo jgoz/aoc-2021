@@ -1,4 +1,3 @@
-use regex::Regex;
 use std::{env, io, io::prelude::*};
 
 fn main() {
@@ -16,15 +15,13 @@ fn main() {
 }
 
 fn part1_depth_by_horizontal(v: impl Iterator<Item = String>) -> i32 {
-    let re = Regex::new(r"^(\w+) (\d+)$").unwrap();
-
     let mut depth = 0;
     let mut horiz = 0;
     for elem in v {
-        let cap = re.captures(elem.as_str()).unwrap();
-        let amt = cap.get(2).unwrap().as_str().parse::<i32>().unwrap();
-        let dir = cap.get(1).unwrap().as_str();
-        match dir {
+        let cap = elem.split(" ").collect::<Vec<_>>();
+        let dir = cap.get(0).unwrap();
+        let amt = cap.get(1).unwrap().parse::<i32>().unwrap();
+        match *dir {
             "forward" => horiz += amt,
             "down" => depth += amt,
             "up" => depth -= amt,
@@ -50,16 +47,14 @@ fn day2_part1_test() {
 }
 
 fn part2_depth_by_horizontal(v: impl Iterator<Item = String>) -> i32 {
-    let re = Regex::new(r"^(\w+) (\d+)$").unwrap();
-
     let mut aim = 0;
     let mut depth = 0;
     let mut horiz = 0;
     for elem in v {
-        let cap = re.captures(elem.as_str()).unwrap();
-        let amt = cap.get(2).unwrap().as_str().parse::<i32>().unwrap();
-        let dir = cap.get(1).unwrap().as_str();
-        match dir {
+        let cap = elem.split(" ").collect::<Vec<_>>();
+        let dir = cap.get(0).unwrap();
+        let amt = cap.get(1).unwrap().parse::<i32>().unwrap();
+        match *dir {
             "forward" => {
                 horiz += amt;
                 depth += aim * amt;
