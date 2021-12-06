@@ -33,7 +33,7 @@ fn day6(v: impl Iterator<Item = String>, days: i64) -> i64 {
         (4, initial.iter().filter(|x| **x == 4).count() as i64),
         (5, initial.iter().filter(|x| **x == 5).count() as i64),
         (6, initial.iter().filter(|x| **x == 6).count() as i64),
-        (7, initial.iter().filter(|x| **x == 7).count() as i64),
+        (7, 0),
         (8, 0),
     ]);
 
