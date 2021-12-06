@@ -16,37 +16,67 @@ fn main() {
     }
 }
 
-type Coords = HashMap<(i32, i32), i32>;
+#[derive(Clone, Copy, Debug)]
+struct Line {
+    x1: i32,
+    y1: i32,
+    x2: i32,
+    y2: i32,
+}
 
-fn mark_coords(coords: &mut Coords, start: (i32, i32), end: (i32, i32)) {
-    let (x1, y1) = start;
-    let (x2, y2) = end;
-    let x_off = if x2 > x1 { 1 } else { -1 };
-    let y_off = if y2 > y1 { 1 } else { -1 };
-    let mut x = x1;
-    let mut y = y1;
-    loop {
-        let coord = (x, y);
-        if let Some(val) = coords.get_mut(&coord) {
-            *val += 1
-        } else {
-            coords.insert(coord, 1);
-        }
+impl IntoIterator for Line {
+    type Item = (i32, i32);
+    type IntoIter = LineIntoIter;
 
-        if x == x2 && y == y2 {
-            break;
-        }
-        if x != x2 {
-            x += x_off
-        }
-        if y != y2 {
-            y += y_off
+    fn into_iter(self) -> Self::IntoIter {
+        let x_step = (self.x2 - self.x1).signum();
+        let y_step = (self.y2 - self.y1).signum();
+
+        LineIntoIter {
+            x: self.x1 - x_step,
+            y: self.y1 - y_step,
+            x_max: self.x2,
+            y_max: self.y2,
+            x_step,
+            y_step,
         }
     }
 }
 
+struct LineIntoIter {
+    x: i32,
+    y: i32,
+    x_max: i32,
+    y_max: i32,
+    x_step: i32,
+    y_step: i32,
+}
+
+impl Iterator for LineIntoIter {
+    type Item = (i32, i32);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let x_finished = self.x == self.x_max;
+        let y_finished = self.y == self.y_max;
+
+        if x_finished && y_finished {
+            return None;
+        }
+        if x_finished {
+            self.x_step = 0;
+        }
+        if y_finished {
+            self.y_step = 0;
+        }
+
+        self.x += self.x_step;
+        self.y += self.y_step;
+        Some((self.x, self.y))
+    }
+}
+
 fn day5_part1(v: impl Iterator<Item = String>) -> i32 {
-    let mut map: Coords = HashMap::<(i32, i32), i32>::new();
+    let mut map = HashMap::<(i32, i32), i32>::new();
 
     for line in v {
         let parts = line.split(" -> ").collect::<Vec<_>>();
@@ -65,11 +95,21 @@ fn day5_part1(v: impl Iterator<Item = String>) -> i32 {
             panic!("Bad input! {}", line)
         }
 
-        let start = (start_parts[0], start_parts[1]);
-        let end = (end_parts[0], end_parts[1]);
+        let line = Line {
+            x1: start_parts[0],
+            x2: end_parts[0],
+            y1: start_parts[1],
+            y2: end_parts[1],
+        };
 
-        if start.0 == end.0 || start.1 == end.1 {
-            mark_coords(&mut map, start, end);
+        if line.x1 == line.x2 || line.y1 == line.y2 {
+            for coord in line {
+                if let Some(val) = map.get_mut(&coord) {
+                    *val += 1
+                } else {
+                    map.insert(coord, 1);
+                }
+            }
         }
     }
 
@@ -99,7 +139,7 @@ fn day5_part1_test() {
 }
 
 fn day5_part2(v: impl Iterator<Item = String>) -> i32 {
-    let mut map: Coords = HashMap::<(i32, i32), i32>::new();
+    let mut map = HashMap::<(i32, i32), i32>::new();
 
     for line in v {
         let parts = line.split(" -> ").collect::<Vec<_>>();
@@ -118,10 +158,20 @@ fn day5_part2(v: impl Iterator<Item = String>) -> i32 {
             panic!("Bad input! {}", line)
         }
 
-        let start = (start_parts[0], start_parts[1]);
-        let end = (end_parts[0], end_parts[1]);
+        let line = Line {
+            x1: start_parts[0],
+            x2: end_parts[0],
+            y1: start_parts[1],
+            y2: end_parts[1],
+        };
 
-        mark_coords(&mut map, start, end);
+        for coord in line {
+            if let Some(val) = map.get_mut(&coord) {
+                *val += 1
+            } else {
+                map.insert(coord, 1);
+            }
+        }
     }
 
     map.iter().fold(
