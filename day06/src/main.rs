@@ -15,26 +15,14 @@ fn main() {
     }
 }
 
-fn day6(v: impl Iterator<Item = String>, days: i64) -> i64 {
-    let initial = v
-        .collect::<Vec<_>>()
-        .get(0)
-        .unwrap()
-        .split(",")
-        .map(|x| x.parse::<i32>().unwrap())
-        .collect::<Vec<_>>();
+fn day6(mut v: impl Iterator<Item = String>, days: i64) -> i64 {
+    let line = v.next().unwrap();
+    let initial = line.split(",").map(|x| x.parse::<usize>().unwrap());
 
-    let mut fish = [
-        0,
-        initial.iter().filter(|x| **x == 1).count() as i64,
-        initial.iter().filter(|x| **x == 2).count() as i64,
-        initial.iter().filter(|x| **x == 3).count() as i64,
-        initial.iter().filter(|x| **x == 4).count() as i64,
-        initial.iter().filter(|x| **x == 5).count() as i64,
-        initial.iter().filter(|x| **x == 6).count() as i64,
-        0,
-        0,
-    ];
+    let mut fish = [0; 9];
+    for f in initial {
+        fish[f] += 1;
+    }
 
     for _ in 0..days {
         let fish_0 = fish[0];
