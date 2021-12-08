@@ -9,8 +9,8 @@ fn main() {
     let values = lines.map(|x| x.unwrap());
 
     match part.as_str() {
-        "1" => println!("{}", day7_part1(values)),
-        "2" => println!("{}", day7_part2(values)),
+        "1" => println!("{}", dayD_part1(values)),
+        "2" => println!("{}", dayD_part2(values)),
         _ => println!("Invalid part {}", part),
     }
 }
