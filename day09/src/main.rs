@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::{env, io, io::prelude::*};
 
@@ -16,39 +17,41 @@ fn main() {
     }
 }
 
-fn find_low_points(map: &Vec<Vec<i32>>) -> Vec<(i32, i32, i32)> {
+fn find_low_points(map: &HashMap<(i32, i32), i32>) -> Vec<(i32, i32, i32)> {
     let mut low_points: Vec<(i32, i32, i32)> = vec![];
 
-    for (i, row) in map.iter().enumerate() {
-        for (j, cell) in row.iter().enumerate() {
-            if j > 0 && cell >= &row[j - 1] {
-                continue;
-            }
-            if j < row.len() - 1 && cell >= &row[j + 1] {
-                continue;
-            }
-            if i > 0 && cell >= &map[i - 1][j] {
-                continue;
-            }
-            if i < map.len() - 1 && cell >= &map[i + 1][j] {
-                continue;
-            }
-            low_points.push((i as i32, j as i32, *cell));
+    for (pos, height) in map.iter() {
+        let west = map.get(&(pos.0 - 1, pos.1));
+        let east = map.get(&(pos.0 + 1, pos.1));
+        let north = map.get(&(pos.0, pos.1 - 1));
+        let south = map.get(&(pos.0, pos.1 + 1));
+
+        if west.is_some() && west.unwrap() < height {
+            continue;
         }
+        if east.is_some() && east.unwrap() < height {
+            continue;
+        }
+        if north.is_some() && north.unwrap() < height {
+            continue;
+        }
+        if south.is_some() && south.unwrap() < height {
+            continue;
+        }
+        low_points.push((pos.0, pos.1, *height));
     }
 
     low_points
 }
 
 fn day9_part1(v: impl Iterator<Item = String>) -> i32 {
-    let mut map = Vec::new();
+    let mut map = HashMap::new();
 
-    for line in v {
-        let heights = line
-            .chars()
-            .map(|x| x.to_digit(10).unwrap() as i32)
-            .collect::<Vec<_>>();
-        map.push(heights)
+    for (row, line) in v.enumerate() {
+        for (col, cell) in line.chars().enumerate() {
+            let height = cell.to_digit(10).unwrap() as i32;
+            map.insert((row as i32, col as i32), height);
+        }
     }
 
     let low_points = find_low_points(&map);
@@ -70,53 +73,51 @@ fn day9_part1_test() {
     assert_eq!(15, answer);
 }
 
-fn walk_basin(mut basin: &mut HashSet<(i32, i32)>, map: &Vec<Vec<i32>>, i: usize, j: usize) {
-    basin.insert((i as i32, j as i32));
+fn walk_basin(
+    mut basin: &mut HashSet<(i32, i32)>,
+    map: &HashMap<(i32, i32), i32>,
+    pos: (i32, i32),
+) {
+    basin.insert(pos);
 
-    // Look east
-    if j > 0 && map[i][j - 1] < 9 && !basin.contains(&(i as i32, (j as i32) - 1)) {
-        walk_basin(&mut basin, &map, i, j - 1);
-    }
+    let west = (pos.0, pos.1 - 1);
+    let east = (pos.0, pos.1 + 1);
+    let north = (pos.0 - 1, pos.1);
+    let south = (pos.0 + 1, pos.1);
 
-    // Look west
-    if j < map[i].len() - 1 && map[i][j + 1] < 9 && !basin.contains(&(i as i32, (j as i32) + 1)) {
-        walk_basin(&mut basin, &map, i, j + 1);
-    }
+    let dirs = [west, east, north, south];
 
-    // Look north
-    if i > 0 && map[i - 1][j] < 9 && !basin.contains(&((i as i32) - 1, j as i32)) {
-        walk_basin(&mut basin, &map, i - 1, j);
-    }
+    let valid_dirs = dirs.iter().filter(|pos| match map.get(pos) {
+        Some(height) => *height < 9,
+        _ => false,
+    });
 
-    // Look south
-    if i < map.len() - 1 && map[i + 1][j] < 9 && !basin.contains(&((i as i32) + 1, j as i32)) {
-        walk_basin(&mut basin, &map, i + 1, j);
+    for dir in valid_dirs {
+        if !basin.contains(dir) {
+            walk_basin(&mut basin, &map, *dir);
+        }
     }
 }
 
 fn day9_part2(v: impl Iterator<Item = String>) -> i32 {
-    let mut map = Vec::new();
+    let mut map = HashMap::new();
 
-    for line in v {
-        let heights = line
-            .chars()
-            .map(|x| x.to_digit(10).unwrap() as i32)
-            .collect::<Vec<_>>();
-        map.push(heights)
+    for (row, line) in v.enumerate() {
+        for (col, cell) in line.chars().enumerate() {
+            let height = cell.to_digit(10).unwrap() as i32;
+            map.insert((row as i32, col as i32), height);
+        }
     }
 
     let low_points = find_low_points(&map);
 
-    let mut basins = vec![];
-
-    for (i, j, _) in low_points {
-        let mut basin: HashSet<(i32, i32)> = HashSet::new();
-        walk_basin(&mut basin, &map, i as usize, j as usize);
-        basins.push(basin);
-    }
+    let basins = low_points.iter().map(|(i, j, _)| {
+        let mut basin = HashSet::new();
+        walk_basin(&mut basin, &map, (*i, *j));
+        basin
+    });
 
     basins
-        .iter()
         .map(|x| x.len() as i32)
         .rev()
         .take(3)
