@@ -3,4 +3,4 @@
 DAY=day$(printf "%02d" $1)
 PART="${2:-1}"
 
-cargo run --release --bin $DAY $PART < $DAY/input
+cargo run ${@:3} --bin $DAY $PART < $DAY/input
