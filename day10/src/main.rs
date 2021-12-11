@@ -68,25 +68,22 @@ fn day10_part2(v: impl Iterator<Item = String>) -> i64 {
 
     'outer: for line in v {
         let mut stack = vec![];
-        let mut end_stack = vec![];
 
         for c in line.chars() {
             if start_pairs.contains_key(&c) {
                 stack.push(c);
-                end_stack.push(*start_pairs.get(&c).unwrap());
             } else if end_pairs.contains_key(&c) {
                 let last = stack.pop().unwrap();
                 if last != *end_pairs.get(&c).unwrap() {
                     continue 'outer;
                 }
-                end_stack.pop();
             }
         }
 
         let mut sum: i64 = 0;
-        for c in end_stack.iter().rev() {
+        for c in stack.iter().rev() {
             sum *= 5;
-            sum += points.get(c).unwrap();
+            sum += points.get(start_pairs.get(c).unwrap()).unwrap();
         }
         sums.push(sum);
     }
