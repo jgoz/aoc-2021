@@ -19,124 +19,127 @@ fn main() {
     }
 }
 
-#[derive(Debug, Clone)]
-struct Arena {
-    nodes: Vec<Node>,
-}
-
-#[derive(Debug, Clone)]
-struct Node {
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct NodeId {
     name: String,
-    id: NodeId,
-    big: bool,
-    start: bool,
-    end: bool,
-    siblings: Vec<NodeId>,
 }
 
-impl Node {
-    fn new(name: &String, id: &NodeId) -> Node {
-        let end = name == "end";
-        let start = name == "start";
-        Node {
-            name: name.clone(),
-            id: id.clone(),
-            big: name.to_uppercase() == *name,
-            start,
-            end,
-            siblings: vec![],
+impl NodeId {
+    fn from(name: &str) -> NodeId {
+        NodeId {
+            name: name.to_string(),
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
-struct NodeId {
-    index: usize,
 }
 
 type Path = Vec<NodeId>;
 
+#[derive(Debug, Clone, PartialEq)]
+enum NodeKind {
+    Start,
+    End,
+    Big,
+    Small,
+}
+
+#[derive(Debug, Clone)]
+struct Node {
+    id: NodeId,
+    kind: NodeKind,
+    siblings: Vec<NodeId>,
+}
+
+impl Node {
+    fn new(id: &NodeId, siblings: Vec<NodeId>) -> Node {
+        let kind = match id.name.as_str() {
+            "start" => NodeKind::Start,
+            "end" => NodeKind::End,
+            n => {
+                if id.name.to_uppercase() == n {
+                    NodeKind::Big
+                } else {
+                    NodeKind::Small
+                }
+            }
+        };
+        Node {
+            id: id.clone(),
+            kind,
+            siblings,
+        }
+    }
+
+    fn is_start(&self) -> bool {
+        self.kind == NodeKind::Start
+    }
+    fn is_end(&self) -> bool {
+        self.kind == NodeKind::End
+    }
+    fn is_small(&self) -> bool {
+        self.kind == NodeKind::Small
+    }
+}
+
 struct Cave {
-    arena: Arena,
-    start: Option<NodeId>,
+    nodes: HashMap<NodeId, Node>,
 }
 
 impl Cave {
     fn from(v: impl Iterator<Item = String>) -> Cave {
-        let mut arena = Arena { nodes: vec![] };
-        let mut nodes: HashMap<String, NodeId> = HashMap::new();
-        let mut next_index = 0;
+        let mut nodes: HashMap<NodeId, Node> = HashMap::new();
 
         for line in v {
-            let names = line.split("-").collect::<Vec<_>>();
+            let (name_one, name_two) = line.split_once("-").unwrap();
+            let id_one = NodeId::from(name_one);
+            let id_two = NodeId::from(name_two);
 
-            let name_one = names.get(0).unwrap().to_string();
-            let name_two = names.get(1).unwrap().to_string();
-
-            if !nodes.contains_key(&name_one) {
-                let id = NodeId { index: next_index };
-                next_index += 1;
-
-                arena.nodes.push(Node::new(&name_one, &id));
-                nodes.insert(name_one.clone(), id);
+            if !nodes.contains_key(&id_one) {
+                nodes.insert(id_one.clone(), Node::new(&id_one, vec![id_two.clone()]));
+            } else {
+                let node_one = nodes.get_mut(&id_one).unwrap();
+                node_one.siblings.push(id_two.clone());
             }
-
-            if !nodes.contains_key(&name_two) {
-                let id = NodeId { index: next_index };
-                next_index += 1;
-
-                arena.nodes.push(Node::new(&name_two, &id));
-                nodes.insert(name_two.clone(), id);
+            if !nodes.contains_key(&id_two) {
+                nodes.insert(id_two.clone(), Node::new(&id_two, vec![id_one]));
+            } else {
+                let node_two = nodes.get_mut(&id_two).unwrap();
+                node_two.siblings.push(id_one.clone());
             }
-
-            arena.nodes[nodes.get(&name_one).unwrap().index]
-                .siblings
-                .push(nodes.get(&name_two).unwrap().clone());
-
-            arena.nodes[nodes.get(&name_two).unwrap().index]
-                .siblings
-                .push(nodes.get(&name_one).unwrap().clone());
         }
 
-        Cave {
-            arena,
-            start: Some(nodes.get("start").unwrap().clone()),
-        }
+        Cave { nodes }
     }
 
     fn walk(&self, max_small_visits: usize) -> HashSet<Path> {
+        let smalls = self.nodes.values().filter(|n| n.is_small());
+
         let mut paths: HashSet<Path> = HashSet::new();
-        let start_id = self.start.as_ref().unwrap();
+        let start_id = NodeId::from("start");
 
         let mut queue: Vec<(NodeId, Path)> = Vec::new();
-        queue.push((start_id.clone(), vec![*start_id]));
+        queue.push((start_id.clone(), vec![start_id]));
 
         while let Some((node_id, path)) = queue.pop() {
-            let node = &self.arena.nodes[node_id.index];
+            let node = &self.nodes[&node_id];
 
-            if node.end {
+            if node.kind == NodeKind::End {
                 paths.insert(path.clone());
                 continue;
             }
 
-            'siblings: for sibling_id in &node.siblings {
-                let sibling = &self.arena.nodes[sibling_id.index];
-                if sibling.start {
-                    continue;
-                }
-                if sibling.end && path.contains(&sibling_id) {
-                    continue;
-                }
+            for sibling_id in &node.siblings {
+                let sibling = &self.nodes[&sibling_id];
+                let exists_in_path = path.contains(&sibling_id);
 
-                if !sibling.big && path.contains(&sibling_id) {
-                    for id in path.iter() {
-                        let node = &self.arena.nodes[id.index];
-                        if node.big || node.start || node.end {
-                            continue;
-                        }
-                        if path.iter().filter(|x| *x == id).count() >= max_small_visits {
-                            continue 'siblings;
-                        }
+                if sibling.is_start() || sibling.is_end() && exists_in_path {
+                    continue;
+                }
+                if sibling.is_small() && exists_in_path {
+                    let exceeded = smalls
+                        .clone()
+                        .any(|n| path.iter().filter(|id| **id == n.id).count() >= max_small_visits);
+                    if exceeded {
+                        continue;
                     }
                 }
 
