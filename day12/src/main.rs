@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    env, io,
-    io::prelude::*,
-};
+use std::{collections::HashMap, env, io, io::prelude::*};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -110,20 +106,20 @@ impl Cave {
         Cave { nodes }
     }
 
-    fn walk(&self, max_small_visits: usize) -> HashSet<Path> {
-        let smalls = self.nodes.values().filter(|n| n.is_small());
-
-        let mut paths: HashSet<Path> = HashSet::new();
-        let start_id = NodeId::from("start");
-
+    fn count_paths(&self, max_small_visits: usize) -> i32 {
+        let mut paths = 0;
         let mut queue: Vec<(NodeId, Path)> = Vec::new();
+
+        let start_id = NodeId::from("start");
         queue.push((start_id.clone(), vec![start_id]));
+
+        let smalls = self.nodes.values().filter(|n| n.is_small());
 
         while let Some((node_id, path)) = queue.pop() {
             let node = &self.nodes[&node_id];
 
             if node.kind == NodeKind::End {
-                paths.insert(path.clone());
+                paths += 1;
                 continue;
             }
 
@@ -155,9 +151,9 @@ impl Cave {
 
 fn day12_part1(v: impl Iterator<Item = String>) -> i32 {
     let cave = Cave::from(v);
-    let paths = cave.walk(1);
+    let paths = cave.count_paths(1);
 
-    paths.len() as i32
+    paths
 }
 
 #[test]
@@ -197,9 +193,9 @@ fn day12_part1_test_2() {
 
 fn day12_part2(v: impl Iterator<Item = String>) -> i32 {
     let cave = Cave::from(v);
-    let paths = cave.walk(2);
+    let paths = cave.count_paths(2);
 
-    paths.len() as i32
+    paths
 }
 
 #[test]
