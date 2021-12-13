@@ -21,20 +21,15 @@ struct Dot(usize, usize);
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 struct Fold(usize, usize);
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Paper {
-    dots: Vec<Dot>,
+    dots: HashSet<Dot>,
     folds: Vec<Fold>,
-    max_x: usize,
-    max_y: usize,
 }
 
 impl Paper {
     fn from(mut v: impl Iterator<Item = String>) -> Self {
-        let mut dots = vec![];
-        let mut max_x = 0;
-        let mut max_y = 0;
-
+        let mut dots = HashSet::new();
         loop {
             let line = v.next().unwrap();
             if line.is_empty() {
@@ -46,14 +41,7 @@ impl Paper {
                 .map(|(x, y)| (x.parse::<usize>().unwrap(), y.parse::<usize>().unwrap()))
                 .unwrap();
 
-            dots.push(Dot(x, y));
-
-            if x > max_x {
-                max_x = x;
-            }
-            if y > max_y {
-                max_y = y;
-            }
+            dots.insert(Dot(x, y));
         }
 
         let mut folds = vec![];
@@ -67,12 +55,7 @@ impl Paper {
             }
         }
 
-        Paper {
-            dots,
-            folds,
-            max_x,
-            max_y,
-        }
+        Paper { dots, folds }
     }
 
     fn fold(&mut self, times: usize) {
@@ -86,38 +69,45 @@ impl Paper {
 
             let Fold(x, y) = fold.unwrap();
 
-            for dot in self.dots.iter_mut() {
+            let mut dots = HashSet::new();
+            for dot in self.dots.iter() {
                 if x > 0 {
                     // fold along x
+                    let mut new_x = dot.0;
                     if dot.0 >= x {
                         let dx = dot.0 - x;
-                        dot.0 = x - dx;
+                        new_x = x - dx;
                     }
+                    dots.insert(Dot(new_x, dot.1));
                 } else if y > 0 {
                     // fold along y
+                    let mut new_y = dot.1;
                     if dot.1 >= y {
                         let dy = dot.1 - y;
-                        dot.1 = y - dy;
+                        new_y = y - dy;
                     }
+                    dots.insert(Dot(dot.0, new_y));
                 }
             }
+            self.dots = dots;
         }
-
-        let dots = self.dots.clone();
-        let dots_new: HashSet<Dot> = HashSet::from_iter(dots.into_iter());
-
-        self.dots = dots_new.into_iter().collect::<Vec<_>>();
     }
 
     fn print(&self) {
         // clear
         print!("{esc}[2J", esc = 27 as char);
 
+        let mut max_y: usize = 0;
+
         // write dots using ansi escape codes
         for Dot(x, y) in self.dots.iter() {
             print!("{esc}[{y};{x}f#", esc = 27 as char, x = x + 1, y = y + 1);
+            if *y > max_y {
+                max_y = *y;
+            }
         }
 
+        println!("{esc}[{y};{x}f", esc = 27 as char, x = 0, y = max_y + 3);
         println!();
         println!();
     }
