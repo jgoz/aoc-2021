@@ -103,7 +103,7 @@ impl Paper {
 
         // write dots using ansi escape codes
         for Dot(x, y) in self.dots.iter() {
-            print!("{esc}[{y};{x}f#", esc = 27 as char, x = x + 1, y = y + 1);
+            print!("{esc}[{y};{x}f█", esc = 27 as char, x = x + 1, y = y + 1);
             if *y > max_y {
                 max_y = *y;
             }
