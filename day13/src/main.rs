@@ -1,4 +1,4 @@
-use std::{collections::HashSet, env, io, io::prelude::*};
+use std::{env, io, io::prelude::*};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -15,7 +15,7 @@ fn main() {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 struct Dot(usize, usize);
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -23,13 +23,13 @@ struct Fold(usize, usize);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Paper {
-    dots: HashSet<Dot>,
+    dots: Vec<Dot>,
     folds: Vec<Fold>,
 }
 
 impl Paper {
     fn from(mut v: impl Iterator<Item = String>) -> Self {
-        let mut dots = HashSet::new();
+        let mut dots = vec![];
         loop {
             let line = v.next().unwrap();
             if line.is_empty() {
@@ -41,8 +41,10 @@ impl Paper {
                 .map(|(x, y)| (x.parse::<usize>().unwrap(), y.parse::<usize>().unwrap()))
                 .unwrap();
 
-            dots.insert(Dot(x, y));
+            dots.push(Dot(x, y));
         }
+
+        dots.sort();
 
         let mut folds = vec![];
         for line in v {
@@ -69,8 +71,7 @@ impl Paper {
 
             let Fold(x, y) = fold.unwrap();
 
-            let mut dots = HashSet::new();
-            for dot in self.dots.iter() {
+            for dot in self.dots.iter_mut() {
                 if x > 0 {
                     // fold along x
                     let mut new_x = dot.0;
@@ -78,7 +79,7 @@ impl Paper {
                         let dx = dot.0 - x;
                         new_x = x - dx;
                     }
-                    dots.insert(Dot(new_x, dot.1));
+                    dot.0 = new_x;
                 } else if y > 0 {
                     // fold along y
                     let mut new_y = dot.1;
@@ -86,10 +87,11 @@ impl Paper {
                         let dy = dot.1 - y;
                         new_y = y - dy;
                     }
-                    dots.insert(Dot(dot.0, new_y));
+                    dot.1 = new_y;
                 }
             }
-            self.dots = dots;
+            self.dots.sort();
+            self.dots.dedup();
         }
     }
 
