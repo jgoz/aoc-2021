@@ -46,6 +46,20 @@ enum Packet {
     Operator(Operator),
 }
 
+impl Packet {
+    fn lit(ver: usize, val: usize) -> Packet {
+        Packet::Literal(Literal { ver, val })
+    }
+
+    fn op(id: TypeId, ver: usize, subpackets: Vec<Packet>) -> Packet {
+        Packet::Operator(Operator {
+            id,
+            ver,
+            subpackets,
+        })
+    }
+}
+
 fn read_bin(chars: &mut impl Iterator<Item = char>, len: usize, read: &mut usize) -> usize {
     let bin = chars.take(len).collect::<String>();
     *read += len;
@@ -79,8 +93,7 @@ fn parse_packet(chars: &mut impl Iterator<Item = char>, read: &mut usize) -> Pac
                     break;
                 }
             }
-
-            Packet::Literal(Literal { ver, val })
+            Packet::lit(ver, val)
         }
         // Operator packet
         id => {
@@ -96,11 +109,7 @@ fn parse_packet(chars: &mut impl Iterator<Item = char>, read: &mut usize) -> Pac
                         subpackets.push(parse_packet(chars, read));
                     }
 
-                    Packet::Operator(Operator {
-                        id,
-                        ver,
-                        subpackets,
-                    })
+                    Packet::op(id, ver, subpackets)
                 }
                 1 => {
                     let len = read_bin(chars, 11, read);
@@ -110,11 +119,7 @@ fn parse_packet(chars: &mut impl Iterator<Item = char>, read: &mut usize) -> Pac
                         subpackets.push(parse_packet(chars, read));
                     }
 
-                    Packet::Operator(Operator {
-                        id,
-                        ver,
-                        subpackets,
-                    })
+                    Packet::op(id, ver, subpackets)
                 }
                 _ => panic!("Unknown operator type {}", op),
             }
@@ -173,7 +178,7 @@ fn day16_part1_test() {
     let mut chars_1 = bin_1.chars();
     let mut read_1 = 0;
     assert_eq!(
-        Packet::Literal(Literal { ver: 6, val: 2021 }),
+        Packet::lit(6, 2021),
         parse_packet(&mut chars_1, &mut read_1)
     );
 
