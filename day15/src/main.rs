@@ -1,4 +1,10 @@
-use std::{collections::HashMap, env, io, io::prelude::*, isize};
+use std::{
+    cmp::Ordering,
+    collections::{BinaryHeap, HashMap},
+    env, io,
+    io::prelude::*,
+    isize,
+};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -19,15 +25,44 @@ const MAX_RISK: isize = 10_000_000;
 const DX: [isize; 4] = [-1, 0, 1, 0];
 const DY: [isize; 4] = [0, 1, 0, -1];
 
+/// (x, y)
+type Coord = (isize, isize);
+
 struct Cavern {
-    map: HashMap<(isize, isize), isize>,
+    map: HashMap<Coord, isize>,
     max_x: isize,
     max_y: isize,
-    distances: HashMap<(isize, isize), isize>,
+    distances: HashMap<Coord, isize>,
 }
 
-// x, y, distance
-type Cell = (isize, isize, isize);
+#[derive(Copy, Clone, Eq, PartialEq)]
+struct State {
+    cost: isize,
+    position: Coord,
+}
+
+// The priority queue depends on `Ord`.
+// Explicitly implement the trait so the queue becomes a min-heap
+// instead of a max-heap.
+impl Ord for State {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Notice that the we flip the ordering on costs.
+        // In case of a tie we compare positions - this step is necessary
+        // to make implementations of `PartialEq` and `Ord` consistent.
+        other
+            .cost
+            .cmp(&self.cost)
+            .then_with(|| other.position.0.cmp(&self.position.0))
+            .then_with(|| other.position.1.cmp(&self.position.1))
+    }
+}
+
+// `PartialOrd` needs to be implemented as well.
+impl PartialOrd for State {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 fn wrap(c: char, dx: isize, dy: isize) -> isize {
     let d = c.to_digit(10).unwrap() as isize;
@@ -94,12 +129,18 @@ impl Cavern {
     }
 
     pub fn min_path(&mut self) -> isize {
-        let mut queue: Vec<Cell> = vec![(0, 0, 0)];
-        while queue.len() > 0 {
-            let head = *queue.get(0).unwrap();
-            queue.remove(0);
+        let mut queue: BinaryHeap<State> = BinaryHeap::from([State {
+            position: (0, 0),
+            cost: 0,
+        }]);
 
-            let head_dist = *self.distances.get(&(head.0, head.1)).unwrap();
+        while queue.len() > 0 {
+            let State {
+                position: head,
+                cost: _,
+            } = queue.pop().unwrap();
+
+            let head_dist = *self.distances.get(&head).unwrap();
 
             for i in 0..4 {
                 let x = head.0 + DX[i];
@@ -108,18 +149,19 @@ impl Cavern {
                     continue;
                 }
 
-                let cur_dist = *self.distances.get(&(x, y)).unwrap();
-                let cost = *self.map.get(&(x, y)).unwrap();
+                let cur = (x, y);
+                let cur_dist = *self.distances.get(&cur).unwrap();
+                let cost = *self.map.get(&cur).unwrap();
 
                 if head_dist + cost < cur_dist {
                     // We found a shorter path to this cell, so update it and follow it next round
-                    self.distances.insert((x, y), head_dist + cost);
-                    queue.push((x, y, cur_dist))
+                    self.distances.insert(cur, head_dist + cost);
+                    queue.push(State {
+                        position: cur,
+                        cost: cur_dist,
+                    })
                 }
             }
-
-            // Re-prioritize the queue by shortest distance
-            queue.sort_by(|a, b| a.2.cmp(&b.2))
         }
 
         *self.distances.get(&(self.max_x, self.max_y)).unwrap()
