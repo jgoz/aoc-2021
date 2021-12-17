@@ -116,7 +116,7 @@ fn fire_shots(target: &Target) -> Vec<Shot> {
     for vel_y in target.y_min..=-target.y_min {
         // Fire shots until the x velocity is such that it will
         // never hit the target
-        for vel_x in 1..=target.x_max {
+        for vel_x in -target.x_max..=target.x_max {
             let shot = trajectory((vel_x, vel_y), target);
 
             if shot.result == ShotResult::Hit {
