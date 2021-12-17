@@ -74,7 +74,6 @@ struct Shot {
     y: i32,
     path: Vec<(i32, i32)>,
     result: ShotResult,
-    steps: i32,
 }
 
 fn trajectory(vel: (i32, i32), target: &Target) -> Shot {
@@ -83,7 +82,6 @@ fn trajectory(vel: (i32, i32), target: &Target) -> Shot {
         y: vel.1,
         path: Vec::new(),
         result: ShotResult::OnTarget,
-        steps: 0,
     };
     let mut x = 0;
     let mut y = 0;
@@ -95,7 +93,6 @@ fn trajectory(vel: (i32, i32), target: &Target) -> Shot {
         y += vel_y;
 
         shot.path.push((x, y));
-        shot.steps += 1;
 
         if vel_x > 0 {
             vel_x -= 1;
@@ -111,35 +108,21 @@ fn trajectory(vel: (i32, i32), target: &Target) -> Shot {
     shot
 }
 
-fn fire_shots_from_y(vel_y: i32, target: &Target) -> Vec<Shot> {
-    let mut hits = Vec::new();
-    let mut vel_x = 1;
-
-    loop {
-        let shot = trajectory((vel_x, vel_y), target);
-        let steps = shot.steps;
-
-        if steps == 1 && shot.result == ShotResult::Miss(MissType::Overshot) {
-            // Stop when our first step is an overshot
-            break;
-        }
-        if shot.result == ShotResult::Hit {
-            hits.push(shot);
-        }
-
-        vel_x += 1;
-    }
-
-    hits
-}
-
 fn fire_shots(target: &Target) -> Vec<Shot> {
     let mut hits = Vec::new();
 
-    // Fire shots until the y velocity is such that it will
+    // Fire shots until the x and y velocities are such that it will
     // never hit the target
-    for vel_y in target.y_min..-target.y_min {
-        hits.extend(fire_shots_from_y(vel_y, target));
+    for vel_y in target.y_min..=-target.y_min {
+        // Fire shots until the x velocity is such that it will
+        // never hit the target
+        for vel_x in 1..=target.x_max {
+            let shot = trajectory((vel_x, vel_y), target);
+
+            if shot.result == ShotResult::Hit {
+                hits.push(shot);
+            }
+        }
     }
 
     hits
