@@ -95,7 +95,7 @@ impl Image {
         out
     }
 
-    pub fn enhance(&self, i: i32) -> Image {
+    pub fn enhance(&self) -> Image {
         let mut bits = Vec::new();
         for y in -1..self.height + 1 {
             for x in -1..self.width + 1 {
@@ -108,9 +108,9 @@ impl Image {
             bits,
             width: self.width + 2,
             height: self.height + 2,
-            // Only set assume_zero if this is an odd iteration and alg[0] is '#',
-            // which will result in a flashing border
-            assume_zero: self.alg[0] == '#' && i % 2 == 1,
+            // This inverts with each iteration because that's how the flashing
+            // border would work if alg[0] is '#'
+            assume_zero: !self.assume_zero,
         }
     }
 }
@@ -118,9 +118,9 @@ impl Image {
 fn day20_part1(v: impl Iterator<Item = String>) -> i32 {
     let image0 = Image::from(v);
     print!("0:\n{}\n\n", image0.to_string());
-    let image1 = image0.enhance(1);
+    let image1 = image0.enhance();
     print!("1:\n{}\n\n", image1.to_string());
-    let image2 = image1.enhance(2);
+    let image2 = image1.enhance();
     print!("2:\n{}\n\n", image2.to_string());
 
     image2.bits.iter().filter(|&&c| c == '#').count() as i32
@@ -145,8 +145,8 @@ fn day20_part1_test() {
 fn day20_part2(v: impl Iterator<Item = String>) -> i32 {
     let mut image = Image::from(v);
 
-    for i in 1..=50 {
-        image = image.enhance(i);
+    for _ in 0..50 {
+        image = image.enhance();
     }
 
     image.bits.iter().filter(|&&c| c == '#').count() as i32
