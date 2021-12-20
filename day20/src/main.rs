@@ -59,7 +59,7 @@ impl Image {
             // requested. This will happen if zero is "#" which will cause the
             // border to flash. Rather than rendering a solid border out to infinity,
             // we can just assume it will be set to this when calculating the inner values.
-            return if self.assume_zero { '#' } else { '.' };
+            return if self.assume_zero { self.alg[0] } else { '.' };
         }
 
         let idx = (y * self.width + x) as usize;
