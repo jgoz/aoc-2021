@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use std::{collections::HashSet, env, io, io::prelude::*};
 
 fn main() {
@@ -100,14 +101,14 @@ impl Scanner {
     }
 
     fn transpose_onto(&self, other: &Scanner) -> Option<Scanner> {
-        for flip in FLIPS {
-            for swap in SWAPS {
-                let translated = other.translate(flip, swap);
+        self.beacons.par_iter().find_map_any(|&beacon| {
+            let relative_magnitudes_self = rel_magnitudes(&self.beacons, &beacon);
 
-                for beacon in self.beacons.iter() {
-                    let relative_magnitudes_self = rel_magnitudes(&self.beacons, beacon);
+            for flip in FLIPS {
+                for swap in SWAPS {
+                    let translated = other.translate(flip, swap);
 
-                    for other_beacon in translated.iter() {
+                    let scanner = translated.par_iter().find_map_any(|&other_beacon| {
                         let mut overlaps = Vec::new();
 
                         let relative_magnitudes_other = rel_magnitudes(&translated, &other_beacon);
@@ -146,11 +147,17 @@ impl Scanner {
                                 });
                             }
                         }
+
+                        None
+                    });
+
+                    if scanner.is_some() {
+                        return scanner;
                     }
                 }
             }
-        }
-        None
+            None
+        })
     }
 
     fn translate(&self, flip: [i32; 3], swap: [usize; 3]) -> Vec<Pos> {
