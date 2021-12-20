@@ -67,20 +67,22 @@ impl Image {
     }
 
     fn get_output_pixel(&self, x: isize, y: isize) -> char {
-        let mut bin = String::new();
+        let mut index = 0;
+        let mut i = 8;
 
         for iy in y - 1..=y + 1 {
             for ix in x - 1..=x + 1 {
                 let pixel = self.get_input_pixel(ix, iy);
-                bin.push(match pixel {
-                    '.' => '0',
-                    '#' => '1',
-                    _ => panic!("Invalid pixel {}", pixel),
-                });
+                index = index
+                    | match pixel {
+                        '.' => 0,
+                        '#' => 1 << i,
+                        _ => panic!("Invalid pixel {}", pixel),
+                    };
+                i -= 1;
             }
         }
 
-        let index = usize::from_str_radix(&bin, 2).unwrap();
         self.alg[index]
     }
 
