@@ -45,10 +45,6 @@ type Pos = [i32; 3];
 struct Scanner {
     id: i32,
     pos: Pos,
-    x: usize,
-    y: usize,
-    z: usize,
-    flip: Pos,
     beacons: Vec<Pos>,
 }
 
@@ -100,10 +96,6 @@ impl Scanner {
             beacons,
             // Guesses
             pos: [0, 0, 0],
-            x: X,
-            y: Y,
-            z: Z,
-            flip: [1, 1, 1],
         }
     }
 
@@ -150,10 +142,6 @@ impl Scanner {
                                 return Some(Scanner {
                                     id: other.id,
                                     pos: offset_0,
-                                    x: swap[X],
-                                    y: swap[Y],
-                                    z: swap[Z],
-                                    flip,
                                     beacons,
                                 });
                             }
