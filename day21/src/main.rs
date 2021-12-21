@@ -102,6 +102,11 @@ fn day21_part2(v: impl Iterator<Item = String>) -> u64 {
         .map(|str| str.split_once(": ").unwrap().1.parse::<u32>().unwrap())
         .collect::<Vec<_>>();
 
+    let rolls = (1..=3)
+        .map(|r1| (1..=3).map(move |r2| (1..=3).map(move |r3| (r1, r2, r3))))
+        .flatten()
+        .flatten();
+
     let mut turns: HashMap<Turn, u64> = HashMap::from([(
         Turn {
             spaces: [spaces[0], spaces[1]],
@@ -117,17 +122,13 @@ fn day21_part2(v: impl Iterator<Item = String>) -> u64 {
             let mut next_turns = HashMap::new();
 
             for (turn, count) in turns.clone() {
-                for r1 in 1..=3 {
-                    for r2 in 1..=3 {
-                        for r3 in 1..=3 {
-                            let new_turn = turn.next_turn(p, r1, r2, r3);
-                            if new_turn.is_win(p) {
-                                wins[p] += count;
-                            } else {
-                                let new_count = next_turns.entry(new_turn).or_insert(0);
-                                *new_count += count;
-                            }
-                        }
+                for (r1, r2, r3) in rolls.clone() {
+                    let new_turn = turn.next_turn(p, r1, r2, r3);
+                    if new_turn.is_win(p) {
+                        wins[p] += count;
+                    } else {
+                        let new_count = next_turns.entry(new_turn).or_insert(0);
+                        *new_count += count;
                     }
                 }
             }
