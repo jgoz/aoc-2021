@@ -15,39 +15,18 @@ fn main() {
     }
 }
 
-struct DieIterator {
-    current: u32,
-    max: u32,
-    rolls: u32,
-}
-
-impl Iterator for DieIterator {
-    type Item = u32;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let result = self.current;
-        self.current += 1;
-        self.rolls += 1;
-
-        if self.current > self.max {
-            self.current = 1;
-        }
-
-        Some(result)
-    }
-}
-
 struct Player {
     space: u32,
     score: u32,
 }
 
 impl Player {
-    fn roll(&mut self, die_roller: &mut DieIterator) {
+    fn roll(&mut self, die_roller: &mut impl Iterator<Item = u32>, rolls: &mut u32) {
         for _ in 0..3 {
             if let Some(roll) = die_roller.next() {
                 self.space += roll;
             }
+            *rolls += 1;
         }
         while self.space > 10 {
             self.space -= 10;
@@ -57,11 +36,8 @@ impl Player {
 }
 
 fn day21_part1(v: impl Iterator<Item = String>) -> u32 {
-    let mut die_roller = DieIterator {
-        current: 1,
-        max: 100,
-        rolls: 0,
-    };
+    let mut die_roller = (1..=100).cycle();
+    let mut rolls = 0;
 
     let mut players = v
         .map(|str| {
@@ -72,7 +48,7 @@ fn day21_part1(v: impl Iterator<Item = String>) -> u32 {
 
     'game: loop {
         for player in players.iter_mut() {
-            player.roll(&mut die_roller);
+            player.roll(&mut die_roller, &mut rolls);
             if player.score >= 1000 {
                 break 'game;
             }
@@ -81,7 +57,7 @@ fn day21_part1(v: impl Iterator<Item = String>) -> u32 {
 
     let loser = players.iter().find(|p| p.score < 1000).unwrap();
 
-    loser.score * die_roller.rolls
+    loser.score * rolls
 }
 
 #[test]
