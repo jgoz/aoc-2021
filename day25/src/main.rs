@@ -63,6 +63,7 @@ impl Grid {
         }
     }
 
+    #[allow(dead_code)]
     fn to_string(&self) -> String {
         let mut s = String::new();
         for y in 0..=self.max_y {
@@ -123,8 +124,6 @@ fn next_state(grid: &Grid) -> Option<Grid> {
 fn day25_part1(v: impl Iterator<Item = String>) -> i32 {
     let mut grid = Grid::from(v);
     let mut iterations = 1;
-
-    println!("{}", grid.to_string());
 
     while let Some(next_grid) = next_state(&grid) {
         grid = next_grid;

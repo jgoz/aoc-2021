@@ -86,6 +86,7 @@ impl Image {
         self.alg[index]
     }
 
+    #[allow(dead_code)]
     fn to_string(&self) -> String {
         let mut out = String::new();
         for y in 0..self.height {
@@ -119,11 +120,11 @@ impl Image {
 
 fn day20_part1(v: impl Iterator<Item = String>) -> i32 {
     let image0 = Image::from(v);
-    print!("0:\n{}\n\n", image0.to_string());
+    //print!("0:\n{}\n\n", image0.to_string());
     let image1 = image0.enhance();
-    print!("1:\n{}\n\n", image1.to_string());
+    //print!("1:\n{}\n\n", image1.to_string());
     let image2 = image1.enhance();
-    print!("2:\n{}\n\n", image2.to_string());
+    //print!("2:\n{}\n\n", image2.to_string());
 
     image2.bits.iter().filter(|&&c| c == '#').count() as i32
 }

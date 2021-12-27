@@ -10,8 +10,7 @@ fn main() {
     let values = lines.map(|x| x.unwrap());
 
     match part.as_str() {
-        "1" => println!("{}", day19_part1(values)),
-        "2" => println!("{}", day19_part2(values)),
+        "1" => println!("{:?}", day19(values)),
         _ => println!("Invalid part {}", part),
     }
 }
@@ -200,7 +199,6 @@ fn transpose_all_scanners(v: impl Iterator<Item = String>) -> Vec<Scanner> {
                 let next = scanner.transpose_onto(other);
                 tried.insert((scanner.id, other.id));
                 if next.is_some() {
-                    println!("{} {}", scanner.id.to_string(), other.id.to_string());
                     rotated.push(next.unwrap());
                     continue 'found;
                 }
@@ -212,30 +210,14 @@ fn transpose_all_scanners(v: impl Iterator<Item = String>) -> Vec<Scanner> {
     rotated
 }
 
-fn day19_part1(v: impl Iterator<Item = String>) -> i32 {
+fn day19(v: impl Iterator<Item = String>) -> (i32, i32) {
     let rotated = transpose_all_scanners(v);
-
     let mut beacons: HashSet<Pos> = HashSet::new();
-    for scanner in rotated.into_iter() {
-        beacons.extend(scanner.beacons.iter().cloned());
-    }
 
-    beacons.len() as i32
-}
-
-#[test]
-fn day19_part1_test() {
-    let v = get_test_input();
-    let answer = day19_part1(v.into_iter());
-
-    assert_eq!(79, answer);
-}
-
-fn day19_part2(v: impl Iterator<Item = String>) -> i32 {
-    let rotated = transpose_all_scanners(v);
     let mut max_dist = 0;
 
     for a in rotated.iter() {
+        beacons.extend(a.beacons.iter().cloned());
         for b in rotated.iter() {
             let dist = (a.pos[X] - b.pos[X]).abs()
                 + (a.pos[Y] - b.pos[Y]).abs()
@@ -246,15 +228,15 @@ fn day19_part2(v: impl Iterator<Item = String>) -> i32 {
         }
     }
 
-    max_dist
+    (beacons.len() as i32, max_dist)
 }
 
 #[test]
-fn day19_part2_test() {
+fn day19_test() {
     let v = get_test_input();
-    let answer = day19_part2(v.into_iter());
+    let answer = day19(v.into_iter());
 
-    assert_eq!(3621, answer);
+    assert_eq!((79, 3621), answer);
 }
 
 #[test]
