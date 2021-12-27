@@ -1,5 +1,7 @@
 use std::{collections::HashMap, env, io, io::prelude::*};
 
+use rayon::prelude::*;
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let part = args.get(1).cloned().unwrap_or(String::from("1"));
@@ -9,8 +11,7 @@ fn main() {
     let values = lines.map(|x| x.unwrap());
 
     match part.as_str() {
-        "1" => println!("{}", day24_part1(values)),
-        "2" => println!("{}", day24_part2(values)),
+        "1" => println!("{:?}", day24(values)),
         _ => println!("Invalid part {}", part),
     }
 }
@@ -182,16 +183,17 @@ fn reverse_number(n: i64) -> i64 {
     result
 }
 
-fn day24_part1(v: impl Iterator<Item = String>) -> i64 {
+fn day24(v: impl Iterator<Item = String>) -> [i64; 2] {
     let instructions = v.map(|x| Instruction::from(&x)).collect::<Vec<_>>();
-    let mut cpu = MonadCPU::<14>::new(&instructions, [9, 8, 7, 6, 5, 4, 3, 2, 1]);
+    let mut cpus = [
+        MonadCPU::<14>::new(&instructions, [9, 8, 7, 6, 5, 4, 3, 2, 1]),
+        MonadCPU::<14>::new(&instructions, [1, 2, 3, 4, 5, 6, 7, 8, 9]),
+    ];
 
-    reverse_number(cpu.execute(0, [0, 0, 0, 0]).unwrap())
-}
+    let vals = cpus
+        .par_iter_mut()
+        .map(|cpu| reverse_number(cpu.execute(0, [0, 0, 0, 0]).unwrap()))
+        .collect::<Vec<_>>();
 
-fn day24_part2(v: impl Iterator<Item = String>) -> i64 {
-    let instructions = v.map(|x| Instruction::from(&x)).collect::<Vec<_>>();
-    let mut cpu = MonadCPU::<14>::new(&instructions, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
-
-    reverse_number(cpu.execute(0, [0, 0, 0, 0]).unwrap())
+    [vals[0], vals[1]]
 }
