@@ -10,7 +10,6 @@ fn main() {
 
     match part.as_str() {
         "1" => println!("{}", day25_part1(values)),
-        "2" => println!("{}", day25_part2(values)),
         _ => println!("Invalid part {}", part),
     }
 }
@@ -151,16 +150,4 @@ fn day25_part1_test() {
     let answer = day25_part1(v.into_iter());
 
     assert_eq!(58, answer);
-}
-
-fn day25_part2(mut v: impl Iterator<Item = String>) -> i32 {
-    0
-}
-
-#[test]
-fn day25_part2_test() {
-    let v = vec![String::from("")];
-    let answer = day25_part2(v.into_iter());
-
-    assert_eq!(0, answer);
 }
