@@ -1,4 +1,5 @@
 use core::fmt;
+use pathfinding::directed::astar::astar;
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -82,6 +83,10 @@ impl Amphipod {
 }
 
 type Loc = (i32, i32);
+
+fn distance(a: &Loc, b: &Loc, cost: u32) -> u32 {
+    ((a.0 - b.0).abs() + (a.1 - b.1).abs()) as u32 * cost
+}
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 enum Space {
@@ -204,52 +209,20 @@ impl<const SIZE: usize> Board<SIZE> {
             .all(|(amp, loc)| self.spaces.get(loc) == Some(&Space::Room(amp.species)))
     }
 
-    fn step(
-        &self,
-        amph: &Amphipod,
-        from: Loc,
-        dest: Loc,
-        cost: u32,
-        visited: &mut HashSet<Loc>,
-    ) -> u32 {
-        if dest == from {
-            return cost;
-        }
-        if visited.contains(&from) || self.is_occupied(&from) {
-            return u32::MAX;
-        }
-        let new_cost = cost + amph.species.cost();
-        visited.insert(from);
-
-        let west = self.step(amph, (from.0 - 1, from.1), dest, new_cost, visited);
-        let east = self.step(amph, (from.0 + 1, from.1), dest, new_cost, visited);
-        let north = self.step(amph, (from.0, from.1 - 1), dest, new_cost, visited);
-        let south = self.step(amph, (from.0, from.1 + 1), dest, new_cost, visited);
-
-        *[west, east, north, south].iter().min().unwrap()
-    }
-
-    fn walk(&self, amph: &Amphipod, loc: Loc) -> u32 {
-        let &init = self.amphipods.get(amph).unwrap();
-        let mut visited: HashSet<Loc> = HashSet::new();
-        let init_cost = amph.species.cost();
-
-        [(-1, 0), (1, 0), (0, -1), (0, 1)]
-            .iter()
-            .map(|(dx, dy)| {
-                let start = (init.0 as i32 + dx, init.1 as i32 + dy);
-                self.step(amph, start.into(), loc, init_cost, &mut visited)
-            })
-            .min()
-            .unwrap()
+    fn successors(&self, &(x, y): &Loc, cost: u32) -> Vec<(Loc, u32)> {
+        [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]
+            .into_iter()
+            .filter(|p| !self.is_occupied(p))
+            .map(|p| (p, cost))
+            .collect()
     }
 
     fn possible_moves(&self) -> Vec<(Amphipod, Loc, u32)> {
         let mut room_moves = vec![];
         let mut hall_moves = vec![];
 
-        for (amph, loc) in self.amphipods.iter() {
-            let &cur_space = self.spaces.get(loc).unwrap();
+        for (amph, start) in self.amphipods.iter() {
+            let &cur_space = self.spaces.get(start).unwrap();
             if cur_space == Space::Room(amph.species) {
                 if self.room_is_ok(amph.species) {
                     continue;
@@ -257,7 +230,7 @@ impl<const SIZE: usize> Board<SIZE> {
             }
 
             for (dest, &space) in self.spaces.iter() {
-                if dest == loc || self.is_occupied(&dest) {
+                if dest == start || self.is_occupied(&dest) {
                     continue;
                 }
                 match space {
@@ -265,8 +238,13 @@ impl<const SIZE: usize> Board<SIZE> {
                     Space::Hallway => {
                         if cur_space != Space::Hallway {
                             // They never move from a hallway to a hallway
-                            let cost = self.walk(amph, *dest);
-                            if cost < u32::MAX {
+                            let result = astar(
+                                start,
+                                |p| self.successors(p, amph.species.cost()),
+                                |p| distance(p, &dest, amph.species.cost()),
+                                |p| p == dest,
+                            );
+                            if let Some((_, cost)) = result {
                                 hall_moves.push((*amph, *dest, cost));
                             }
                         }
@@ -277,8 +255,13 @@ impl<const SIZE: usize> Board<SIZE> {
                             && self.room_is_ok(species)
                             && self.last_empty_room_slot(species).unwrap() == *dest
                         {
-                            let cost = self.walk(amph, *dest);
-                            if cost < u32::MAX {
+                            let result = astar(
+                                start,
+                                |p| self.successors(p, amph.species.cost()),
+                                |p| distance(p, &dest, amph.species.cost()),
+                                |p| p == dest,
+                            );
+                            if let Some((_, cost)) = result {
                                 // Short circuit if we can move directly into a destination room
                                 room_moves.push((*amph, *dest, cost));
                             }
@@ -372,13 +355,6 @@ fn day23_part1_test() {
         String::from("  #########"),
     ];
 
-    let test_board = Board::<2>::from(v.clone().into_iter());
-    let a = Amphipod {
-        species: Species::B,
-        id: 0,
-    };
-    assert_eq!(test_board.walk(&a, (5, 0)), 40);
-
     let answer = day23_part1(v.into_iter());
 
     assert_eq!(Species::A.cost(), 1);
@@ -387,25 +363,6 @@ fn day23_part1_test() {
     assert_eq!(Species::D.cost(), 1000);
 
     assert_eq!(12521, answer);
-}
-
-#[test]
-fn day23_part1_test_2() {
-    let v = vec![
-        String::from("#############"),
-        String::from("#...B.....A.#"),
-        String::from("###A#D#C#.###"),
-        String::from("  #C#D#B#.#"),
-        String::from("  #########"),
-    ];
-
-    let d = Amphipod {
-        species: Species::D,
-        id: 3,
-    };
-    let test_board = Board::<2>::from(v.clone().into_iter());
-
-    assert_eq!(test_board.walk(&d, (8, 2)), 7000);
 }
 
 #[test]
