@@ -24,15 +24,15 @@ fn main() {
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-enum Species {
+enum Amphipod {
     A = 1,
     B = 10,
     C = 100,
     D = 1000,
 }
 
-impl Species {
-    fn from(char: char) -> Option<Species> {
+impl Amphipod {
+    fn from(char: char) -> Option<Amphipod> {
         match char {
             'A' => Some(Self::A),
             'B' => Some(Self::B),
@@ -66,22 +66,6 @@ impl Species {
     }
 }
 
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-struct Amphipod {
-    species: Species,
-    id: usize,
-}
-
-impl Amphipod {
-    fn from(char: char, id: usize) -> Option<Amphipod> {
-        if let Some(species) = Species::from(char) {
-            Some(Amphipod { species, id })
-        } else {
-            None
-        }
-    }
-}
-
 type Loc = (i32, i32);
 
 fn distance(a: &Loc, b: &Loc, cost: u32) -> u32 {
@@ -92,36 +76,32 @@ fn distance(a: &Loc, b: &Loc, cost: u32) -> u32 {
 enum Space {
     Hallway,
     Doorway,
-    Room(Species),
+    Room(Amphipod),
 }
 
 #[derive(Clone, PartialEq, Eq)]
 struct Board<const SIZE: usize> {
-    id: usize,
     spaces: HashMap<Loc, Space>,
-    amphipods: HashMap<Amphipod, Loc>,
+    amphipods: HashMap<Loc, Amphipod>,
 }
 
 impl<const SIZE: usize> Board<SIZE> {
     fn from(v: impl Iterator<Item = String>) -> Board<SIZE> {
         let mut board = Board {
-            id: 0,
             spaces: HashMap::new(),
             amphipods: HashMap::new(),
         };
 
-        let mut id = 0;
         for (y, line) in v.skip(1).enumerate() {
             for (x, char) in line.chars().skip(1).enumerate() {
-                if let Some(amph) = Amphipod::from(char, id) {
-                    board.amphipods.insert(amph, (x as i32, y as i32));
-                    id += 1;
+                if let Some(amph) = Amphipod::from(char) {
+                    board.amphipods.insert((x as i32, y as i32), amph);
                 }
             }
         }
 
         for i in 0..4 {
-            let species = Species::from_index(i).unwrap();
+            let species = Amphipod::from_index(i).unwrap();
             let x = species.room_index();
             for y in 1..=SIZE {
                 board.spaces.insert((x, y as i32), Space::Room(species));
@@ -161,12 +141,12 @@ impl<const SIZE: usize> Board<SIZE> {
             );
         }
 
-        for (amp, loc) in &self.amphipods {
-            lines[loc.1 as usize + 1][loc.0 as usize + 1] = match amp.species {
-                Species::A => 'A',
-                Species::B => 'B',
-                Species::C => 'C',
-                Species::D => 'D',
+        for (loc, amp) in &self.amphipods {
+            lines[loc.1 as usize + 1][loc.0 as usize + 1] = match amp {
+                Amphipod::A => 'A',
+                Amphipod::B => 'B',
+                Amphipod::C => 'C',
+                Amphipod::D => 'D',
             };
         }
         lines
@@ -177,10 +157,10 @@ impl<const SIZE: usize> Board<SIZE> {
     }
 
     fn is_occupied(&self, loc: &Loc) -> bool {
-        !self.spaces.contains_key(loc) || self.amphipods.values().any(|amp| amp == loc)
+        !self.spaces.contains_key(loc) || self.amphipods.contains_key(loc)
     }
 
-    fn last_empty_room_slot(&self, species: Species) -> Option<Loc> {
+    fn last_empty_room_slot(&self, species: Amphipod) -> Option<Loc> {
         let x = species.room_index();
         for y in (1..=SIZE).rev() {
             let loc = (x, y as i32);
@@ -191,11 +171,11 @@ impl<const SIZE: usize> Board<SIZE> {
         None
     }
 
-    fn room_is_ok(&self, species: Species) -> bool {
+    fn room_is_ok(&self, species: Amphipod) -> bool {
         let x = species.room_index();
         for y in 1..=SIZE {
-            if let Some(amph) = self.amphipods.iter().find(|a| a.1 == &(x, y as i32)) {
-                if amph.0.species != species {
+            if let Some(amph) = self.amphipods.get(&(x, y as i32)) {
+                if *amph != species {
                     return false;
                 }
             }
@@ -206,7 +186,7 @@ impl<const SIZE: usize> Board<SIZE> {
     fn is_finished(&self) -> bool {
         self.amphipods
             .iter()
-            .all(|(amp, loc)| self.spaces.get(loc) == Some(&Space::Room(amp.species)))
+            .all(|(loc, amp)| self.spaces.get(loc) == Some(&Space::Room(*amp)))
     }
 
     fn successors(&self, &(x, y): &Loc, cost: u32) -> Vec<(Loc, u32)> {
@@ -217,14 +197,14 @@ impl<const SIZE: usize> Board<SIZE> {
             .collect()
     }
 
-    fn possible_moves(&self) -> Vec<(Amphipod, Loc, u32)> {
+    fn possible_moves(&self) -> Vec<(Amphipod, (Loc, Loc), u32)> {
         let mut room_moves = vec![];
         let mut hall_moves = vec![];
 
-        for (amph, start) in self.amphipods.iter() {
+        for (start, amph) in self.amphipods.iter() {
             let &cur_space = self.spaces.get(start).unwrap();
-            if cur_space == Space::Room(amph.species) {
-                if self.room_is_ok(amph.species) {
+            if cur_space == Space::Room(*amph) {
+                if self.room_is_ok(*amph) {
                     continue;
                 }
             }
@@ -240,30 +220,30 @@ impl<const SIZE: usize> Board<SIZE> {
                             // They never move from a hallway to a hallway
                             let result = astar(
                                 start,
-                                |p| self.successors(p, amph.species.cost()),
-                                |p| distance(p, &dest, amph.species.cost()),
+                                |p| self.successors(p, amph.cost()),
+                                |p| distance(p, &dest, amph.cost()),
                                 |p| p == dest,
                             );
                             if let Some((_, cost)) = result {
-                                hall_moves.push((*amph, *dest, cost));
+                                hall_moves.push((*amph, (*start, *dest), cost));
                             }
                         }
                     }
                     Space::Room(species) => {
                         // Only walk into a room if it's the same species
-                        if species == amph.species
+                        if species == *amph
                             && self.room_is_ok(species)
                             && self.last_empty_room_slot(species).unwrap() == *dest
                         {
                             let result = astar(
                                 start,
-                                |p| self.successors(p, amph.species.cost()),
-                                |p| distance(p, &dest, amph.species.cost()),
+                                |p| self.successors(p, amph.cost()),
+                                |p| distance(p, &dest, amph.cost()),
                                 |p| p == dest,
                             );
                             if let Some((_, cost)) = result {
                                 // Short circuit if we can move directly into a destination room
-                                room_moves.push((*amph, *dest, cost));
+                                room_moves.push((*amph, (*start, *dest), cost));
                             }
                         }
                     }
@@ -278,35 +258,33 @@ impl<const SIZE: usize> Board<SIZE> {
         room_moves
     }
 
-    fn move_amphipod(&self, amph: &Amphipod, loc: Loc) -> Board<SIZE> {
+    fn move_amphipod(&self, amph: &Amphipod, from: Loc, to: Loc) -> Board<SIZE> {
         let mut new_board = self.clone();
-        new_board.id = self.id + 1;
-        new_board.amphipods.insert(*amph, loc);
+        new_board.amphipods.remove(&from);
+        new_board.amphipods.insert(to, *amph);
         new_board
     }
 
-    fn solve(&self) -> u32 {
+    fn solve(&self) -> Option<u32> {
         let mut queue: Vec<(Board<SIZE>, u32)> = vec![(self.clone(), 0)];
 
-        let mut min_cost = u32::max_value();
+        let mut min_cost = None;
         let mut tried = HashSet::new();
 
         while queue.len() > 0 {
             let (board, head_cost) = queue.remove(0);
+            if min_cost.is_some() && head_cost > min_cost.unwrap() {
+                continue;
+            }
 
             let moves = board.possible_moves();
-            for (amph, loc, cost) in moves {
+            for (amph, (from, to), cost) in moves {
                 let new_cost = head_cost + cost;
-                if new_cost > min_cost {
-                    continue;
-                }
-                let new_board = board.move_amphipod(&amph, loc);
+                let new_board = board.move_amphipod(&amph, from, to);
                 let hash = new_board.to_string();
-                let is_finished = new_board.is_finished();
-                if is_finished {
-                    println!("SOLUTION {}\n{:?}\n", new_cost, new_board);
-                    if new_cost < min_cost {
-                        min_cost = new_cost;
+                if new_board.is_finished() {
+                    if min_cost.is_none() || new_cost < min_cost.unwrap() {
+                        min_cost = Some(new_cost);
                     }
                     continue;
                 }
@@ -334,15 +312,7 @@ impl<const SIZE: usize> Display for Board<SIZE> {
 fn day23_part1(v: impl Iterator<Item = String>) -> u32 {
     let board = Board::<2>::from(v);
 
-    println!("{:?}", board);
-
-    let cost = board.solve();
-
-    if cost == u32::MAX {
-        panic!("Couldn't solve");
-    }
-
-    cost
+    board.solve().expect("Unable to solve")
 }
 
 #[test]
@@ -357,10 +327,10 @@ fn day23_part1_test() {
 
     let answer = day23_part1(v.into_iter());
 
-    assert_eq!(Species::A.cost(), 1);
-    assert_eq!(Species::B.cost(), 10);
-    assert_eq!(Species::C.cost(), 100);
-    assert_eq!(Species::D.cost(), 1000);
+    assert_eq!(Amphipod::A.cost(), 1);
+    assert_eq!(Amphipod::B.cost(), 10);
+    assert_eq!(Amphipod::C.cost(), 100);
+    assert_eq!(Amphipod::D.cost(), 1000);
 
     assert_eq!(12521, answer);
 }
@@ -379,9 +349,9 @@ fn day23_part1_test_3() {
     println!("{:?}", test_board);
     let possibles = test_board.possible_moves();
 
-    for possible in possibles {
-        let new_board = test_board.move_amphipod(&possible.0, possible.1);
-        println!("{:?}", possible.2);
+    for (amph, (from, to), cost) in possibles {
+        let new_board = test_board.move_amphipod(&amph, from, to);
+        println!("{:?}", cost);
         println!("{:?}", new_board);
     }
 }
@@ -393,15 +363,7 @@ fn day23_part2(v: impl Iterator<Item = String>) -> u32 {
 
     let board = Board::<4>::from(big_v.into_iter());
 
-    println!("{:?}", board);
-
-    let cost = board.solve();
-
-    if cost == u32::MAX {
-        panic!("Couldn't solve");
-    }
-
-    cost
+    board.solve().expect("Unable to solve")
 }
 
 #[test]
