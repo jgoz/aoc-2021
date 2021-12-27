@@ -1,7 +1,7 @@
 use core::fmt;
 use pathfinding::directed::astar::astar;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     env,
     fmt::{Debug, Display, Formatter},
     io,
@@ -21,6 +21,10 @@ fn main() {
         "2" => println!("{}", day23_part2(values)),
         _ => println!("Invalid part {}", part),
     }
+}
+
+fn distance_est(a: &Loc, b: &Loc, cost: u32) -> u32 {
+    ((a.0 - b.0).abs() + (a.1 - b.1).abs()) as u32 * cost
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -68,9 +72,8 @@ impl Amphipod {
 
 type Loc = (i32, i32);
 
-fn distance(a: &Loc, b: &Loc, cost: u32) -> u32 {
-    ((a.0 - b.0).abs() + (a.1 - b.1).abs()) as u32 * cost
-}
+#[derive(Clone, PartialEq, Eq)]
+struct State<const SIZE: usize>(u32, Board<SIZE>);
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 enum Space {
@@ -221,7 +224,7 @@ impl<const SIZE: usize> Board<SIZE> {
                             let result = astar(
                                 start,
                                 |p| self.successors(p, amph.cost()),
-                                |p| distance(p, &dest, amph.cost()),
+                                |p| distance_est(p, &dest, amph.cost()),
                                 |p| p == dest,
                             );
                             if let Some((_, cost)) = result {
@@ -238,7 +241,7 @@ impl<const SIZE: usize> Board<SIZE> {
                             let result = astar(
                                 start,
                                 |p| self.successors(p, amph.cost()),
-                                |p| distance(p, &dest, amph.cost()),
+                                |p| distance_est(p, &dest, amph.cost()),
                                 |p| p == dest,
                             );
                             if let Some((_, cost)) = result {
@@ -264,38 +267,6 @@ impl<const SIZE: usize> Board<SIZE> {
         new_board.amphipods.insert(to, *amph);
         new_board
     }
-
-    fn solve(&self) -> Option<u32> {
-        let mut queue: Vec<(Board<SIZE>, u32)> = vec![(self.clone(), 0)];
-
-        let mut min_cost = None;
-        let mut tried = HashSet::new();
-
-        while queue.len() > 0 {
-            let (board, head_cost) = queue.remove(0);
-            if min_cost.is_some() && head_cost > min_cost.unwrap() {
-                continue;
-            }
-
-            let moves = board.possible_moves();
-            for (amph, (from, to), cost) in moves {
-                let new_cost = head_cost + cost;
-                let new_board = board.move_amphipod(&amph, from, to);
-                let hash = new_board.to_string();
-                if new_board.is_finished() {
-                    if min_cost.is_none() || new_cost < min_cost.unwrap() {
-                        min_cost = Some(new_cost);
-                    }
-                    continue;
-                }
-                if tried.insert(hash) {
-                    queue.push((new_board, new_cost));
-                }
-            }
-        }
-
-        min_cost
-    }
 }
 
 impl<const SIZE: usize> Debug for Board<SIZE> {
@@ -309,10 +280,38 @@ impl<const SIZE: usize> Display for Board<SIZE> {
     }
 }
 
+fn solve<const SIZE: usize>(board: Board<SIZE>) -> Option<u32> {
+    let mut queue = VecDeque::from([State(0, board)]);
+    let mut min_cost = None;
+    let mut tried = HashSet::new();
+
+    while let Some(State(head_cost, board)) = queue.pop_front() {
+        if head_cost > min_cost.unwrap_or(u32::MAX) {
+            continue;
+        }
+
+        for (amph, (from, to), cost) in board.possible_moves() {
+            let new_cost = head_cost + cost;
+            let new_board = board.move_amphipod(&amph, from, to);
+            if new_board.is_finished() {
+                if new_cost < min_cost.unwrap_or(u32::MAX) {
+                    min_cost = Some(new_cost);
+                }
+                continue;
+            }
+            if tried.insert(new_board.to_string()) {
+                queue.push_back(State(new_cost, new_board));
+            }
+        }
+    }
+
+    min_cost
+}
+
 fn day23_part1(v: impl Iterator<Item = String>) -> u32 {
     let board = Board::<2>::from(v);
 
-    board.solve().expect("Unable to solve")
+    solve(board).expect("Unable to solve")
 }
 
 #[test]
@@ -363,7 +362,7 @@ fn day23_part2(v: impl Iterator<Item = String>) -> u32 {
 
     let board = Board::<4>::from(big_v.into_iter());
 
-    board.solve().expect("Unable to solve")
+    solve(board).expect("Unable to solve")
 }
 
 #[test]
